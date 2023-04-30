@@ -3,9 +3,10 @@ package godisson
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"net"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 var ErrLockNotObtained = errors.New("ErrLockNotObtained")
@@ -33,6 +34,10 @@ func (r *RLock) Lock() error {
 // waitTime, Millisecond
 // leaseTime, Millisecond, -1 enable watchdog
 func (r *RLock) TryLock(waitTime int64, leaseTime int64) error {
+	// PubSub
+	sub := r.g.c.Subscribe(context.TODO(), r.g.getChannelName(r.Key))
+	defer sub.Close()
+
 	wait := waitTime
 	current := currentTimeMillis()
 	ttl, err := r.tryAcquire(waitTime, leaseTime)
@@ -47,9 +52,6 @@ func (r *RLock) TryLock(waitTime int64, leaseTime int64) error {
 		return ErrLockNotObtained
 	}
 	current = currentTimeMillis()
-	// PubSub
-	sub := r.g.c.Subscribe(context.TODO(), r.g.getChannelName(r.Key))
-	defer sub.Close()
 	timeoutCtx, timeoutCancel := context.WithTimeout(context.TODO(), time.Duration(wait)*time.Millisecond)
 	defer timeoutCancel()
 	_, err = sub.ReceiveMessage(timeoutCtx)

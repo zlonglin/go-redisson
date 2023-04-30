@@ -2,9 +2,10 @@ package godisson
 
 import (
 	"context"
-	"github.com/pkg/errors"
 	"net"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 type Mutex struct {
@@ -20,6 +21,9 @@ func newMutex(key string, g *Godisson) *Mutex {
 }
 
 func (m *Mutex) TryLock(waitTime int64, leaseTime int64) error {
+	// PubSub
+	sub := m.g.c.Subscribe(context.TODO(), m.g.getChannelName(m.Key))
+
 	wait := waitTime
 	current := currentTimeMillis()
 	ttl, err := m.tryAcquire(waitTime, leaseTime)
@@ -34,8 +38,6 @@ func (m *Mutex) TryLock(waitTime int64, leaseTime int64) error {
 		return ErrLockNotObtained
 	}
 	current = currentTimeMillis()
-	// PubSub
-	sub := m.g.c.Subscribe(context.TODO(), m.g.getChannelName(m.Key))
 	defer sub.Close()
 	timeoutCtx, timeoutCancel := context.WithTimeout(context.TODO(), time.Duration(wait)*time.Millisecond)
 	defer timeoutCancel()
